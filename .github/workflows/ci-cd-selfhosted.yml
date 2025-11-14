@@ -130,7 +130,7 @@ jobs:
         run: |
           export DATABASE_URL=postgresql://devops:devops123@localhost:5435/tasksdb
           python3 -c "from app import app, db; app.app_context().push(); db.create_all()"
-      
+            
       - name: Run integration tests
         run: |
           export API_BASE_URL=http://localhost:5000
