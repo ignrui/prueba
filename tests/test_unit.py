@@ -1,20 +1,22 @@
 """
 Unit Tests for Task Management API
 """
-
 from app import app, db, Task
 import pytest
 import sys
 import os
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..")))
 
 
 @pytest.fixture
 def client():
-    """Create a test client"""
+    """Create a test client with in-memory SQLite database"""
+    # ✅ CORRECCIÓN: Usar SQLite en memoria, NO PostgreSQL
     app.config["TESTING"] = True
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"  # ← CLAVE
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     with app.test_client() as client:
         with app.app_context():
