@@ -129,7 +129,7 @@ jobs:
       - name: Initialize database
         run: |
           export DATABASE_URL=postgresql://devops:devops123@localhost:5435/tasksdb
-          python3 -c "from app import app, db; app.app_context().push(); db.create_all()"
+          python3 -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()"
             
       - name: Run integration tests
         run: |
@@ -176,7 +176,7 @@ jobs:
       - name: Initialize staging database
         run: |
           docker-compose -f docker-compose.staging.yml exec -T app \
-            python3 -c "from app import app, db; app.app_context().push(); db.create_all()" || true
+            python3 -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()" || true
       
       - name: Verify staging deployment
         run: |
@@ -247,7 +247,7 @@ jobs:
       - name: Initialize production database
         run: |
           docker-compose -f docker-compose.prod.yml exec -T app \
-            python3 -c "from app import app, db; app.app_context().push(); db.create_all()" || true
+            python3 -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()" || true
       
       - name: Verify production deployment
         run: |
