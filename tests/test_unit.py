@@ -1,32 +1,39 @@
 """
 Unit Tests for Task Management API
 """
-from app import app, db, Task
+from app import create_app, db, Task
 import pytest
 import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-
-@pytest.fixture
-def client():
-    """Create a test client with in-memory SQLite database"""
-    # ✅ CORRECCIÓN: Usar SQLite en memoria, NO PostgreSQL
-    app.config["TESTING"] = True
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"  # ← CLAVE
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-    with app.test_client() as client:
-        with app.app_context():
-            db.create_all()
-        yield client
-        with app.app_context():
-            db.drop_all()
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 @pytest.fixture
-def sample_task(client):
+def app():
+    """Create a Flask app configured for testing with in-memory SQLite."""
+    test_config = {
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+    }
+    app = create_app(test_config)
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.drop_all()
+
+
+@pytest.fixture
+def client(app):
+    """Flask test client using the test app."""
+    return app.test_client()
+
+
+@pytest.fixture
+def sample_task(app):
     """Create a sample task for testing"""
     with app.app_context():
         task = Task(
@@ -115,7 +122,7 @@ def test_delete_task(client, sample_task):
     assert response.status_code == 404
 
 
-def test_task_model_to_dict(client):
+def test_task_model_to_dict(app):
     """Test Task model to_dict method"""
     with app.app_context():
         task = Task(
