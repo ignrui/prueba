@@ -45,7 +45,7 @@ def create_app(test_config=None):
         app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     db.init_app(app)
-    metrics = PrometheusMetrics(app)
+    PrometheusMetrics(app)
 
     @app.route("/health", methods=["GET"])
     def health_check():
