@@ -5,6 +5,7 @@ Simple task management API with PostgreSQL database
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from prometheus_flask_exporter import PrometheusMetrics
+from sqlalchemy import text
 import os
 from datetime import datetime
 
@@ -51,7 +52,7 @@ def health_check():
     """Health check endpoint for monitoring"""
     try:
         # Check database connectivity
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
