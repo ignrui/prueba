@@ -12,23 +12,29 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
 
 # IDE
 .vscode/
 .idea/
 *.swp
-.DS_Store
+*.swo
 
-# Environment variables
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+docs/
+
+# CI/CD
+.github/
+
+# Environment
 .env
-.env.local
+.env.*
 
-# Docker
-docker-compose.override.yml
-
-# Logs
+# Misc
 *.log
-
-# Database
-*.db
-*.sqlite
+.DS_Store

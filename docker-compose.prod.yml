@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  app:
+    image: flask-task-api:production
+    container_name: flask-app-prod
+    ports:
+      - "5002:5000"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://devops:${DB_PASSWORD:-prod123}@db:5432/tasksdb
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - production-network
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  db:
+    image: postgres:15-alpine
+    container_name: postgres-prod
+    environment:
+      - POSTGRES_USER=devops
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-prod123}
+      - POSTGRES_DB=tasksdb
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - production-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U devops" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-prod
+    ports:
+      - "9092:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_prod_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - production-network
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-prod
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-prod123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_prod_data:/var/lib/grafana
+    networks:
+      - production-network
+    depends_on:
+      - prometheus
+    restart: always
+
+volumes:
+  postgres_prod_data:
+  prometheus_prod_data:
+  grafana_prod_data:
+
+
+networks:
+  production-network:
+    driver: bridge
