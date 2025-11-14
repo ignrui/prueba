@@ -1,15 +1,16 @@
 """
 Integration Tests for Task Management API
 """
+
 import pytest
 import requests
 import time
 import os
 
-BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:5000')
+BASE_URL = os.getenv("API_BASE_URL", "http://localhost:5000")
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def api_url():
     """Provide base API URL"""
     return BASE_URL
@@ -36,7 +37,7 @@ def test_api_health(api_url):
     response = requests.get(f"{api_url}/health")
     assert response.status_code == 200
     data = response.json()
-    assert data['status'] == 'healthy'
+    assert data["status"] == "healthy"
 
 
 def test_create_and_retrieve_task(api_url):
@@ -45,14 +46,14 @@ def test_create_and_retrieve_task(api_url):
         pytest.skip("API not available")
 
     task_data = {
-        'title': 'Integration Test Task',
-        'description': 'Created during integration testing',
-        'completed': False
+        "title": "Integration Test Task",
+        "description": "Created during integration testing",
+        "completed": False,
     }
     create_response = requests.post(f"{api_url}/api/tasks", json=task_data)
     assert create_response.status_code == 201
     created_task = create_response.json()
-    task_id = created_task['id']
+    task_id = created_task["id"]
 
     get_response = requests.get(f"{api_url}/api/tasks/{task_id}")
     assert get_response.status_code == 200
@@ -63,13 +64,12 @@ def test_update_task_workflow(api_url):
     if not wait_for_api(api_url):
         pytest.skip("API not available")
 
-    task_data = {'title': 'Task to Update', 'completed': False}
+    task_data = {"title": "Task to Update", "completed": False}
     create_response = requests.post(f"{api_url}/api/tasks", json=task_data)
-    task_id = create_response.json()['id']
+    task_id = create_response.json()["id"]
 
-    update_data = {'title': 'Updated Task Title', 'completed': True}
-    update_response = requests.put(
-        f"{api_url}/api/tasks/{task_id}", json=update_data)
+    update_data = {"title": "Updated Task Title", "completed": True}
+    update_response = requests.put(f"{api_url}/api/tasks/{task_id}", json=update_data)
     assert update_response.status_code == 200
 
 
@@ -78,9 +78,9 @@ def test_delete_task_workflow(api_url):
     if not wait_for_api(api_url):
         pytest.skip("API not available")
 
-    task_data = {'title': 'Task to Delete'}
+    task_data = {"title": "Task to Delete"}
     create_response = requests.post(f"{api_url}/api/tasks", json=task_data)
-    task_id = create_response.json()['id']
+    task_id = create_response.json()["id"]
 
     delete_response = requests.delete(f"{api_url}/api/tasks/{task_id}")
     assert delete_response.status_code == 200
@@ -92,7 +92,7 @@ def test_list_tasks_integration(api_url):
         pytest.skip("API not available")
 
     for i in range(3):
-        task_data = {'title': f'Batch Task {i}'}
+        task_data = {"title": f"Batch Task {i}"}
         requests.post(f"{api_url}/api/tasks", json=task_data)
 
     response = requests.get(f"{api_url}/api/tasks")
@@ -106,8 +106,7 @@ def test_error_handling_invalid_task(api_url):
     if not wait_for_api(api_url):
         pytest.skip("API not available")
 
-    response = requests.post(f"{api_url}/api/tasks",
-                             json={'description': 'No title'})
+    response = requests.post(f"{api_url}/api/tasks", json={"description": "No title"})
     assert response.status_code == 400
 
 
