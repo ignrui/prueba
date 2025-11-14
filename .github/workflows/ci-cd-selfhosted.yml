@@ -216,7 +216,7 @@ jobs:
   deploy-production:
     name: 🚀 Deploy to Production
     runs-on: self-hosted
-    needs: deploy-staging
+    needs: integration-tests
     if: github.ref == 'refs/heads/main'
     environment:
       name: production
