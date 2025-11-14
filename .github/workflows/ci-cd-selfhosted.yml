@@ -6,36 +6,35 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  PYTHON_VERSION: '3.11'
-
 jobs:
   lint:
     name: Code Quality - Lint
-    runs-on: self-hosted  # ← Self-hosted runner
+    runs-on: self-hosted
     
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      # ❌ ELIMINAR ESTO:
+      # - name: Set up Python
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: ${{ env.PYTHON_VERSION }}
       
-      - name: Install dependencies
+      # ✅ USAR DIRECTAMENTE:
+      - name: Install linting dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install flake8 black pylint
+          python3 -m pip install flake8 black pylint
       
       - name: Run flake8
-        run: flake8 app.py tests/ --max-line-length=120
+        run: python3 -m flake8 app.py tests/ --max-line-length=120 --exclude=__pycache__
       
       - name: Run black (check only)
-        run: black --check app.py tests/
+        run: python3 -m black --check app.py tests/
       
       - name: Run pylint
-        run: pylint app.py --disable=C0111,R0903
+        run: python3 -m pylint app.py --disable=C0111,R0903
         continue-on-error: true
 
   unit-tests:
@@ -47,26 +46,23 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      # ❌ NO usar setup-python
       
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install -r requirements-dev.txt
       
       - name: Run unit tests
         run: |
-          pytest tests/test_unit.py -v \
+          python3 -m pytest tests/test_unit.py -v \
             --cov=app \
             --cov-report=term-missing \
             --cov-report=html
       
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: htmlcov/
@@ -83,10 +79,8 @@ jobs:
       
       - name: Build Docker images
         run: |
-          # Build imagen con tag del commit
           docker build -t flask-task-api:${{ github.sha }} .
           
-          # Tag como staging o production según branch
           if [ "${{ github.ref }}" == "refs/heads/develop" ]; then
             docker tag flask-task-api:${{ github.sha }} flask-task-api:staging
           elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
@@ -115,18 +109,14 @@ jobs:
             -p 5435:5432 \
             postgres:15-alpine
           
-          echo "⏳ Esperando que PostgreSQL esté listo..."
+          echo "⏳ Esperando PostgreSQL..."
           sleep 10
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
       
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install -r requirements-dev.txt
       
       - name: Start Flask app for testing
         run: |
@@ -139,12 +129,12 @@ jobs:
       - name: Initialize database
         run: |
           export DATABASE_URL=postgresql://devops:devops123@localhost:5435/tasksdb
-          python3 -c "from app import app, db; app.app_context().push(); db.create_all()"
-      
+          python3 -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()"
+            
       - name: Run integration tests
         run: |
           export API_BASE_URL=http://localhost:5000
-          pytest tests/test_integration.py -v
+          python3 -m pytest tests/test_integration.py -v
       
       - name: Cleanup
         if: always()
@@ -180,13 +170,13 @@ jobs:
         run: |
           echo "🚀 Desplegando a Staging..."
           docker-compose -f docker-compose.staging.yml up -d
-          echo "⏳ Esperando que los servicios estén listos..."
+          echo "⏳ Esperando servicios..."
           sleep 20
       
       - name: Initialize staging database
         run: |
           docker-compose -f docker-compose.staging.yml exec -T app \
-            python -c "from app import app, db; app.app_context().push(); db.create_all()" || true
+            python3 -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()" || true
       
       - name: Verify staging deployment
         run: |
@@ -196,7 +186,7 @@ jobs:
               echo "✅ Staging deployment exitoso!"
               exit 0
             fi
-            echo "Intento $i/10 falló, esperando..."
+            echo "Intento $i/10..."
             sleep 3
           done
           echo "❌ Staging deployment falló"
@@ -205,16 +195,12 @@ jobs:
       
       - name: Smoke tests
         run: |
-          # Test crear tarea
           curl -X POST http://localhost:5001/api/tasks \
             -H "Content-Type: application/json" \
-            -d '{"title": "Staging Test", "description": "Automated test"}' \
-            -f || exit 1
+            -d '{"title": "Staging Test", "description": "Automated"}' -f
           
-          # Test listar tareas
-          curl -f http://localhost:5001/api/tasks || exit 1
-          
-          echo "✅ Smoke tests pasaron!"
+          curl -f http://localhost:5001/api/tasks
+          echo "✅ Smoke tests passed!"
       
       - name: Deployment summary
         run: |
@@ -224,12 +210,11 @@ jobs:
           echo "📍 API: http://localhost:5001"
           echo "📊 Prometheus: http://localhost:9091"
           echo "📈 Grafana: http://localhost:3001"
-          echo "🕐 Deployed: $(date)"
           echo "✅ Commit: ${{ github.sha }}"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   deploy-production:
-    name: 🚀 Deploy to Production (Requiere Aprobación)
+    name: 🚀 Deploy to Production
     runs-on: self-hosted
     needs: deploy-staging
     if: github.ref == 'refs/heads/main'
@@ -245,11 +230,9 @@ jobs:
         run: |
           docker-compose -f docker-compose.prod.yml down || true
       
-      - name: Backup production database (simulado)
+      - name: Backup database (simulado)
         run: |
-          echo "📦 Creando backup de base de datos..."
-          BACKUP_NAME="backup-prod-$(date +%Y%m%d-%H%M%S).sql"
-          echo "✅ Backup simulado creado: $BACKUP_NAME"
+          echo "📦 Backup: backup-$(date +%Y%m%d-%H%M%S).sql"
       
       - name: Deploy to Production
         env:
@@ -258,67 +241,50 @@ jobs:
         run: |
           echo "🚀 Desplegando a PRODUCTION..."
           docker-compose -f docker-compose.prod.yml up -d
-          echo "⏳ Esperando que los servicios estén listos..."
+          echo "⏳ Esperando servicios..."
           sleep 25
       
       - name: Initialize production database
         run: |
           docker-compose -f docker-compose.prod.yml exec -T app \
-            python -c "from app import app, db; app.app_context().push(); db.create_all()" || true
+            python3 -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()" || true
       
       - name: Verify production deployment
         run: |
-          echo "🔍 Verificando health check en producción..."
+          echo "🔍 Verificando production..."
           for i in {1..15}; do
             if curl -f http://localhost:5002/health; then
               echo "✅ Production deployment exitoso!"
               exit 0
             fi
-            echo "Intento $i/15 falló, esperando..."
+            echo "Intento $i/15..."
             sleep 5
           done
-          echo "❌ Production deployment falló - iniciando rollback"
+          echo "❌ Deployment falló - rollback"
           docker-compose -f docker-compose.prod.yml logs
           docker-compose -f docker-compose.prod.yml down
           exit 1
       
       - name: Production smoke tests
         run: |
-          # Health check
-          curl -f http://localhost:5002/health || exit 1
-          
-          # Ready check
-          curl -f http://localhost:5002/ready || exit 1
-          
-          # API test
-          curl -f http://localhost:5002/api/tasks || exit 1
-          
-          echo "✅ Production smoke tests pasaron!"
+          curl -f http://localhost:5002/health
+          curl -f http://localhost:5002/ready
+          curl -f http://localhost:5002/api/tasks
+          echo "✅ Production tests passed!"
       
-      - name: Verify monitoring
+      - name: Production summary
         run: |
-          echo "📊 Verificando Prometheus..."
-          curl -f http://localhost:9092/api/v1/targets || echo "⚠️ Prometheus no responde aún"
-          
-          echo "📈 Verificando Grafana..."
-          curl -f http://localhost:3002/api/health || echo "⚠️ Grafana no responde aún"
-      
-      - name: Production deployment summary
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🎉 PRODUCTION DEPLOYMENT COMPLETADO"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📍 Application: http://localhost:5002"
           echo "📊 Prometheus: http://localhost:9092"
           echo "📈 Grafana: http://localhost:3002"
-          echo "🔐 Grafana User: admin"
-          echo "🕐 Deployed at: $(date)"
           echo "✅ Commit: ${{ github.sha }}"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       
       - name: Rollback on failure
         if: failure()
         run: |
-          echo "❌ Deployment falló - ejecutando rollback"
+          echo "❌ Rollback automático"
           docker-compose -f docker-compose.prod.yml down
-          echo "🔄 Rollback completado"
