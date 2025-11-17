@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   lint:
     name: Code Quality - Lint
@@ -169,8 +173,6 @@ jobs:
           GRAFANA_PASSWORD: ${{ secrets.STAGING_GRAFANA_PASSWORD }}
         run: |
           echo "🚀 Desplegando a Staging..."
-          export DB_PASSWORD="${DB_PASSWORD}"
-          export GRAFANA_PASSWORD="${GRAFANA_PASSWORD}"
           docker-compose -f docker-compose.staging.yml up -d
           echo "⏳ Esperando servicios..."
           sleep 20
@@ -237,16 +239,14 @@ jobs:
           echo "📦 Backup: backup-$(date +%Y%m%d-%H%M%S).sql"
       
       - name: Deploy to Production
-        env:
-          DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
-          GRAFANA_PASSWORD: ${{ secrets.PROD_GRAFANA_PASSWORD }}
-        run: |
-          echo "🚀 Desplegando a PRODUCTION..."
-          export DB_PASSWORD="${DB_PASSWORD}"
-          export GRAFANA_PASSWORD="${GRAFANA_PASSWORD}"
-          docker-compose -f docker-compose.prod.yml up -d
-          echo "⏳ Esperando servicios..."
-          sleep 25
+          env:
+            DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+            GRAFANA_PASSWORD: ${{ secrets.PROD_GRAFANA_PASSWORD }}
+          run: |
+            echo "🚀 Desplegando a PRODUCTION..."
+            DB_PASSWORD="${DB_PASSWORD}" GRAFANA_PASSWORD="${GRAFANA_PASSWORD}" docker-compose -f docker-compose.prod.yml up -d
+            echo "⏳ Esperando servicios..."
+            sleep 25
       
       - name: Initialize production database
         run: |
